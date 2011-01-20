@@ -156,13 +156,7 @@ public class PGPManager {
 	public String getUserID() throws PGPException {
 		
 		PGPPublicKey pubKey = getPublicKey();
-		
-		Iterator i = pubKey.getUserIDs();
-		
-		String userID = null;
-		while(i.hasNext()){
-			userID = (String)i.next();
-		}
+		String userID = (String) pubKey.getUserIDs().next();
 		
 		logger.log(Level.INFO,"userID: " + userID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
 		return userID;
