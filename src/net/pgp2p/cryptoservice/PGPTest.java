@@ -136,11 +136,11 @@ public class PGPTest {
 		}
 	}
 	
-	private static void testSign() {
+	private static void testSign(String assinante, String assinado) {
 		
 		try {
-			PGPManager assinanteManager = new PGPManager("./sandbox/gnupg-test/bono");
-			PGPManager assinadoManager = new PGPManager("./sandbox/gnupg-test/paty");
+			PGPManager assinanteManager = new PGPManager("./sandbox/gnupg-test/" + assinante);
+			PGPManager assinadoManager = new PGPManager("./sandbox/gnupg-test/" + assinado);
 			
 			PGPSigner signer = new PGPSigner(assinanteManager);
 			
@@ -158,7 +158,7 @@ public class PGPTest {
 	public static void main(String[] args) {
 		
 		//testVerify("maria", "antonio");
-		//testSign();
+		testSign("bono", "paty");
 
 	}
 

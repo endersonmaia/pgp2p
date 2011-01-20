@@ -17,7 +17,6 @@ public class PGPVerify {
 	 * Logger for this class
 	 */
 	private final static Logger logger = Logger.getLogger(PGPVerify.class.getName()); 
-
 	
 	public PGPManager manager;
 
@@ -34,19 +33,26 @@ public class PGPVerify {
 	 */
 	public boolean isTrusted(PGPPublicKey pubKey) throws PGPException {
 		//TODO - considerar o nível de confiança
-
-		Iterator sigs = pubKey.getSignatures();
-		PGPSignature sign = null;
 		
-		while (sigs.hasNext()) {
-			sign = (PGPSignature) sigs.next();
-			if (sign.getKeyID() == manager.getPublicKey().getKeyID()) {
-				logger.log(Level.INFO, manager.getUserID() + " CONFIA em " + pubKey.getUserIDs().next());
-				return true;
+		// Captura a publicKey fornecida como parametro na base local 
+		PGPPublicKey pubKeyToVerify = manager.publicKeyRing.getPublicKey(pubKey.getKeyID());
+		
+		if ( pubKeyToVerify == null) {
+			logger.log(Level.INFO, "A chave "+ Long.toHexString(pubKey.getKeyID()) + " fornecida por " +pubKey.getUserIDs().next() + " não existe na base local.");
+			return false;
+		} else {
+			Iterator sigs = pubKeyToVerify.getSignatures();
+			PGPSignature sign = null;
+			
+			while (sigs.hasNext()) {
+				sign = (PGPSignature) sigs.next();
+				if (sign.getKeyID() == manager.getPublicKey().getKeyID()) {
+					logger.log(Level.INFO, manager.getUserID() + " CONFIA (tem a pubKey e assinou) em " + pubKey.getUserIDs().next());
+					return true;
+				}
 			}
+
 		}
-		
-		logger.log(Level.INFO, manager.getUserID() + " NÃO CONFIA em " + pubKey.getUserIDs().next());
 		return false;
 	}
 

@@ -142,7 +142,7 @@ public class PGPManager {
 	 * @throws PGPException 
 	 */
 	public PGPPublicKey getPublicKey() throws PGPException  {
-		PGPPublicKey pubKey = this.publicKeyRing.getPublicKey(getPrivateKey().getKeyID());
+		PGPPublicKey pubKey = this.publicKeyRing.getPublicKey(getSecretKey().getKeyID());
 		logger.log(Level.INFO, "Returninig public key "+ Long.toHexString(pubKey.getKeyID()));
 		return pubKey;
 	}
@@ -180,7 +180,7 @@ public class PGPManager {
 		Iterator<PGPPublicKeyRing>    rIt = this.publicKeyRing.getKeyRings();
 		List<PGPPublicKey> trustedPubKeys = new ArrayList();
 
-		long ownerKeyID	= getPrivateKey().getKeyID();
+		long ownerKeyID	= getSecretKey().getKeyID();
 		long trustedKeyID;
 		
         while (rIt.hasNext()) {
@@ -361,12 +361,11 @@ public class PGPManager {
 	 * @throws IOException
 	 * @throws PGPException
 	 */
-	public PGPSecretKey getPrivateKey() {
+	public PGPSecretKey getSecretKey() {
 		
-		PGPSecretKey privKey = this.secretKeyRing.getSecretKey();
-		logger.log(Level.INFO, "Returning private key "+ Long.toHexString(privKey.getKeyID()));
-		return privKey;
-		
+		PGPSecretKey secKey = this.secretKeyRing.getSecretKey();
+		logger.log(Level.INFO, "Returning private key "+ Long.toHexString(secKey.getKeyID()));
+		return secKey;
 	}
 
 
