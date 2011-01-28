@@ -63,7 +63,7 @@ public class PubringDump
         PGPPublicKeyRingCollection    pubRings = new PGPPublicKeyRingCollection(
             PGPUtil.getDecoderStream(new FileInputStream("sandbox" + System.getProperty("file.separator") +
             												"gnupg-test" + System.getProperty("file.separator") +
-            												"mona" + System.getProperty("file.separator") + 
+            												"paty" + System.getProperty("file.separator") + 
             												"pubring.gpg")));
 
         Iterator    rIt = pubRings.getKeyRings();
@@ -87,22 +87,13 @@ public class PubringDump
             {
                 PGPPublicKey    pgpKey = (PGPPublicKey)it.next();
 
-                if (pgpKey.isMasterKey())
-                {
+                if (pgpKey.isMasterKey()) {
                 	
                     // Exibe o ID do usuário
                 	System.out.println( "== CHAVE PÚBLICA ==");
-                    Iterator i = pgpKey.getUserIDs();
-                    while(i.hasNext()) 
-                    {
-                    	System.out.println("User : " + i.next().toString());
-                    }
-
+                  	System.out.println("User : " + pgpKey.getUserIDs().next());
                     System.out.print("Key ID: " + Long.toHexString(pgpKey.getKeyID()));
-                }
-                else
-                {
-                	
+                } else {
                     System.out.print("Key ID: " + Long.toHexString(pgpKey.getKeyID()) + " (subkey)");
                 }
                 

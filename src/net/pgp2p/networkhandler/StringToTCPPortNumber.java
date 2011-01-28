@@ -4,14 +4,14 @@ package net.pgp2p.networkhandler;
 public class StringToTCPPortNumber {
 
 	/**
-	 * Dumb methods that returns a TCP port number in the range from 49152Ð65535 (dynamic, private or ephemeral ports).
+	 * DUMB methods that returns a TCP port number in the range from 49152Ð65535 (dynamic, private or ephemeral ports).
 	 * 
 	 * NUMBERS CAN COLLIDE.
 	 * 
 	 * @param String - any string
-	 * @return Integer - a "distinct" TCP Port Number
+	 * @return String - a "distinct" TCP Port Number
 	 */
-	public static final int get(String string) {
+	public static final String get(String string) {
 		char[] localString = string.toCharArray();
 		
 		final int MIN=49152;
@@ -28,6 +28,6 @@ public class StringToTCPPortNumber {
 		if  ( finalNumber > MAX)
 			finalNumber = MAX - (finalNumber - MAX);
 			
-		return finalNumber; 
+		return String.valueOf(finalNumber); 
 	}
 }

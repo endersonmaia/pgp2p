@@ -1,4 +1,5 @@
-package net.pgp2p.cryptoservice;
+package net.pgp2p.test;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 
+import net.pgp2p.cryptoservice.PGPManager;
 import net.pgp2p.signservice.PGPSigner;
 import net.pgp2p.verifyservice.PGPVerify;
 
@@ -144,7 +146,7 @@ public class PGPTest {
 			
 			PGPSigner signer = new PGPSigner(assinanteManager);
 			
-			signer.sign(assinadoManager.getPublicKey());
+			signer.sign(assinadoManager.getPublicKeys());
 
 			
 		} catch (Exception e) {
@@ -157,8 +159,8 @@ public class PGPTest {
 	
 	public static void main(String[] args) {
 		
-		//testVerify("maria", "antonio");
-		testSign("bono", "paty");
+		testVerify("paty", "bono");
+		//testSign("paty", "bono");
 
 	}
 

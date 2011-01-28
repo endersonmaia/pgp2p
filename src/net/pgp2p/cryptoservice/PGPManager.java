@@ -1,11 +1,10 @@
 package net.pgp2p.cryptoservice;
 
-import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,7 +14,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -23,30 +21,18 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.derby.iapi.util.ByteArray;
-import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.BCPGInputStream;
-import org.bouncycastle.bcpg.BCPGOutputStream;
-import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
-import org.bouncycastle.bcpg.UserIDPacket;
+import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
-import org.bouncycastle.openpgp.PGPKeyRing;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
-import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
-import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.util.encoders.Hex;
-
-import sun.misc.HexDumpEncoder;
 
 
 /**
@@ -146,6 +132,24 @@ public class PGPManager {
 		logger.log(Level.INFO, "Returninig public key "+ Long.toHexString(pubKey.getKeyID()));
 		return pubKey;
 	}
+	
+	//TODO - generate armored public key to use in the JXTA MessageElements
+	public String getArmoredPublikKey() throws IOException, PGPException {
+		String armoredPK;
+		byte[] encoded = getPublicKey().getEncoded();
+		InputStream baii = new ByteArrayInputStream(encoded);
+		ArmoredInputStream aii = new ArmoredInputStream(baii);
+		while ( ! aii.isEndOfStream()) {
+			aii.read();
+		}
+		return "asd";
+	}
+
+	public Iterator<PGPPublicKey> getPublicKeys() throws PGPException {
+		Iterator<PGPPublicKey> pubKeys = this.publicKeyRing.getPublicKeyRing(getPublicKey().getKeyID()).getPublicKeys();
+		logger.log(Level.INFO, "Returninig publickeys for user " + getUserID());
+		return pubKeys;		
+	}
 
 	/**
 	 * Recupera o ID do usu‡rio da primeira chave pœblica na pubring.
@@ -162,7 +166,6 @@ public class PGPManager {
 		return userID;
 	}
 	
-
 	/**
 	 * Returns a list of Users ID that exists in the local publicKeyRing
 	 * 
@@ -172,7 +175,7 @@ public class PGPManager {
 	public List<PGPPublicKey> getTrustedPublicKeys() throws PGPException {
 		
 		Iterator<PGPPublicKeyRing>    rIt = this.publicKeyRing.getKeyRings();
-		List<PGPPublicKey> trustedPubKeys = new ArrayList();
+		List<PGPPublicKey> trustedPubKeys = new ArrayList<PGPPublicKey>();
 
 		long ownerKeyID	= getSecretKey().getKeyID();
 		long trustedKeyID;
@@ -198,11 +201,11 @@ public class PGPManager {
 	 */
 	public PGPPublicKey getPublicKeyByUserID(String userID) throws PGPException {
 
-		Iterator keyRings = this.publicKeyRing.getKeyRings(userID, true);
+		Iterator<PGPPublicKeyRing> keyRings = this.publicKeyRing.getKeyRings(userID, true);
 		
 		PGPPublicKey pubKey;
 		if (keyRings.hasNext()) {
-			pubKey = ((PGPPublicKeyRing) keyRings.next()).getPublicKey();
+			pubKey = keyRings.next().getPublicKey();
 			logger.log(Level.INFO, "Found key " + Long.toHexString(pubKey.getKeyID()) + " when searching for "+ userID);
 			return pubKey;
 		} else {
@@ -287,10 +290,8 @@ public class PGPManager {
 					new SecureRandom(), 
 					"BC");
 		} catch (NoSuchProviderException nspe) {
-			// TODO Auto-generated catch block
 			nspe.printStackTrace();
 		} catch (PGPException pe) {
-			// TODO Auto-generated catch block
 			pe.printStackTrace();
 		}
 		
@@ -304,10 +305,8 @@ public class PGPManager {
 			keyRingGenerator.generateSecretKeyRing().encode(secring);
 			keyRingGenerator.generatePublicKeyRing().encode(pubring);
 		} catch (FileNotFoundException fnfe) {
-			// TODO Auto-generated catch block
 			fnfe.printStackTrace();
 		} catch (IOException ioe) {
-			// TODO Auto-generated catch block
 			ioe.printStackTrace();
 		}
 	}
@@ -324,10 +323,8 @@ public class PGPManager {
 		try {
 			dsaKeyPairGenerator = KeyPairGenerator.getInstance("DSA", "BC");
 		} catch (NoSuchAlgorithmException nsae) {
-			// TODO Auto-generated catch block
 			nsae.printStackTrace();
 		} catch (NoSuchProviderException nspe) {
-			// TODO Auto-generated catch block
 			nspe.printStackTrace();
 		}
 	
@@ -339,7 +336,6 @@ public class PGPManager {
 		try {
 			pgpKeyPair = new PGPKeyPair(PGPPublicKey.DSA, dsaKeyPair, new Date());
 		} catch (PGPException pe) {
-			// TODO Auto-generated catch block
 			pe.printStackTrace();
 		}
 		
@@ -360,6 +356,11 @@ public class PGPManager {
 		PGPSecretKey secKey = this.secretKeyRing.getSecretKey();
 		logger.log(Level.INFO, "Returning private key "+ Long.toHexString(secKey.getKeyID()));
 		return secKey;
+	}
+	
+	public void savePublicKeyRing() throws IOException {
+		OutputStream pubring = new FileOutputStream(this.pubringFilePath);
+		this.publicKeyRing.encode(pubring);
 	}
 
 
