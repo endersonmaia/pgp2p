@@ -1,5 +1,7 @@
 package net.pgp2p.verifyservice;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,6 +22,21 @@ public class PGPVerify {
 	
 	public PGPManager manager;
 
+	public PGPVerify(String path) {
+		try {
+			this.manager = new PGPManager(path);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (PGPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	public PGPVerify(PGPManager manager) {
 		this.manager = manager;
 	}

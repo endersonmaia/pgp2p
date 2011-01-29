@@ -1,5 +1,6 @@
 package net.pgp2p.signservice;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -35,9 +36,26 @@ public class PGPSigner {
 	
 	public PGPManager manager;
 
+	public PGPSigner(String path) {
+		
+		try {
+			this.manager = new PGPManager(path);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (PGPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	public PGPSigner(PGPManager manager) {
 		this.manager = manager;
 	}
+
 	
 	/**
 	 * Signs a given public key.
