@@ -1,12 +1,13 @@
 package net.pgp2p.networkhandler;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sun.tools.tree.IncDecExpression;
+import org.bouncycastle.openpgp.PGPException;
 
 import net.jxta.endpoint.EndpointAddress;
 import net.jxta.endpoint.EndpointListener;
@@ -16,43 +17,49 @@ import net.jxta.endpoint.MessageElement;
 import net.jxta.endpoint.Messenger;
 import net.jxta.endpoint.StringMessageElement;
 import net.jxta.id.IDFactory;
-import net.jxta.impl.endpoint.EndpointServiceImpl;
 import net.jxta.peer.PeerID;
 import net.jxta.peergroup.PeerGroup;
 import net.jxta.peergroup.PeerGroupID;
 import net.jxta.platform.NetworkConfigurator;
 import net.jxta.platform.NetworkManager;
+import net.pgp2p.cryptoservice.PGPManager;
 
 public class ADHOCPeer implements EndpointListener {
-	
-    /**
-     * Logger
-     */
-    private static final Logger logger = Logger.getLogger(ADHOCPeer.class.getName());
+
+	/**
+	 * Logger
+	 */
+	private static final Logger logger = Logger.getLogger(ADHOCPeer.class
+			.getName());
 
 	private String username;
 	private String tcpPort;
 	private File configFile;
 
-	public PeerID PID;
-
+	public PeerID peerID;
 	private PeerGroup netPeerGroup;
 	private NetworkManager netManager;
-
 	private EndpointService endpointService;
+	private PGPManager pgpManager;
 
 	public ADHOCPeer(String username) {
 		this.username = username;
 		this.tcpPort = StringToTCPPortNumber.get(username);
 		this.configFile = new File("." + System.getProperty("file.separator")
 				+ "jxta" + System.getProperty("file.separator") + username);
-		this.PID = getPeerIDforUserame(username);
+		this.peerID = getPeerIDforUserame(username);
+		
+		try {
+			this.pgpManager = new PGPManager("./sandbox/gnupg-test/" + username);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 	}
 	
 	public ADHOCPeer(String username, boolean exclude) {
 		this(username);
-		
+
 		// remove all configuration by default
 		if (exclude)
 			NetworkManager.RecursiveDelete(configFile);
@@ -90,16 +97,16 @@ public class ADHOCPeer implements EndpointListener {
 			netConfig.setTcpEnabled(true);
 			netConfig.setTcpIncoming(true);
 			netConfig.setTcpOutgoing(true);
-			netConfig.setPeerID(PID);
+			netConfig.setPeerID(peerID);
 
 			netConfig.save();
 
 			netPeerGroup = netManager.startNetwork();
 			endpointService = netPeerGroup.getEndpointService();
-			
+
 			// Adding supported services
 			registerListeners();
-			
+
 			netPeerGroup.getRendezVousService().setAutoStart(false);
 
 			// Debug
@@ -107,7 +114,8 @@ public class ADHOCPeer implements EndpointListener {
 			logger.log(Level.INFO, "PeerID :" + netPeerGroup.getPeerID());
 			logger.log(Level.INFO, "Network started with ID :"
 					+ netPeerGroup.getPeerGroupID());
-			logger.log(Level.INFO, "Listening on the port " + tcpPort.toString());
+			logger.log(Level.INFO, "Listening on the port "
+					+ tcpPort.toString());
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -118,63 +126,208 @@ public class ADHOCPeer implements EndpointListener {
 
 	private void registerListeners() {
 		for (int i = 0; i < PGP2PService.PARAMS.length; i++) {
-			endpointService.addIncomingMessageListener(this, PGP2PService.NAME, PGP2PService.PARAMS[i]);
+			endpointService.addIncomingMessageListener(this,
+					PGP2PService.NAMESPACE, PGP2PService.PARAMS[i]);
 		}
 	}
 
 	public boolean canReach(String username) {
 		return endpointService.isReachable(getPeerIDforUserame(username), true);
 	}
-	
-	public void sendMessage(PeerID peerID, Message msg, String param) throws IOException {
-		if ( endpointService.isReachable(peerID, true)) {
-			logger.log(Level.INFO, "OK : CAN REACH");
-			
-			EndpointAddress addr = null;
-			
-			switch(msgParam) {
-				case 1 : 
-					addr = new EndpointAddress(getPeerIDforUserame(username)
-					, "MSG", "PING");
-					break;
-				case 2:
-					addr = new EndpointAddress(getPeerIDforUserame(username)
-					, "MSG", "PONG");
-					break;
-			}
-			
+
+	/**
+	 * Sends a message to the Peer identified by peerID parameter.
+	 * 
+	 * The message must contain PGP2PMessageType.NAMESPACE and use one of the
+	 * PGP2PMessageType.PARAMS[] services.
+	 * 
+	 * @param peerID
+	 * @param msg
+	 * @throws IOException
+	 */
+	public void sendMessage(PeerID peerID, Message msg) throws IOException {
+
+		// gets the messageType code
+		int messageType = Integer.parseInt(msg.getMessageElement(
+				PGP2PService.NAMESPACE, PGP2PMessage.TYPE_FIELD).toString());
+
+		// gets the EndpointAddress for the service identified by the
+		// messageType
+		EndpointAddress addr = new EndpointAddress(peerID,
+				PGP2PService.NAMESPACE, PGP2PService.PARAMS[messageType]);
+
+		// verify if the endpoint is reachable ...
+		if (endpointService.isReachable(peerID, true)) {
+
 			Messenger messenger = endpointService.getMessenger(addr);
-			Message msg = getHelloMessage(username);
-	
-			if (messenger.sendMessage(msg)) {
-				System.out.println("OK : MESSAGE SENT");
+
+			logger.log(Level.INFO, "Can reach.\n" + "peerID: "
+					+ peerID.toString());
+
+			// if messageType is valid ...
+			if (messageType <= PGP2PService.PARAMS.length) {
+
+				// sends the message
+				if (messenger.sendMessage(msg)) {
+					logger.log(Level.INFO, "Message sent.");
+				} else {
+					logger.log(Level.INFO, "Can't send message.");
+				}
+
 			} else {
-				System.out.println("FAIL : MESSAGE NOT SENT");
+				logger.log(Level.INFO, "Invalid message type.");
 			}
 		} else {
-			System.out.println("FAIL: CANT REACH");
+			logger.log(Level.INFO, "Can't reach.\n" + "peerID: "
+					+ peerID.toString());
 		}
 	}
 
-	public void sendMessage(String username,  msg, String param) throws IOException {
-		sendMessage(getPeerIDforUserame(username), msg, param);
-	}
-
-	public void sendVerifyRequest(String username, VerifyRequestMessage msg) {
-		String param = PGP2PService.PARAMS[PGP2PService.VERIFY_REQUEST];
-		sendMessage(username, msg, param);
+	public void sendMessage(String username, Message msg) throws IOException {
+		sendMessage(getPeerIDforUserame(username), msg);
 	}
 
 	@Override
 	public void processIncomingMessage(Message message,
 			EndpointAddress srcAddr, EndpointAddress dstAddr) {
-				
-		Iterator<MessageElement> i = message.getMessageElements();
-		while (i.hasNext()) {
-			MessageElement elem = i.next();
-			System.out.println(elem.getElementName() + ":" + elem.toString());
+
+		logger.log(Level.INFO, dumpMessage(message));
+
+		PGP2PMessage msg = new PGP2PMessage().fromMessage(message);
+
+		if (msg.getType() <= PGP2PService.PARAMS.length) {
+			try {
+				switch (msg.getType()) {
+				case PGP2PService.CONNECT_REQUEST:
+					logger
+							.log(Level.INFO,
+									"Recieving a connect request, sending the message to proccessConnectRequest.");
+					processConnectRequest(msg, srcAddr, dstAddr);
+					break;
+				case PGP2PService.CONNECT_REPLY:
+					logger
+							.log(Level.INFO,
+									"Recieving a connect reply, sending the message do processConnectReply.");
+					processConnectReply(msg, srcAddr, dstAddr);
+					break;
+				case PGP2PService.VERIFY_REQUEST:
+					logger
+							.log(Level.INFO,
+									"Recieving a verify request, sending the message to proccessVerifyRequest.");
+					processVerifyRequest(msg, srcAddr, dstAddr);
+					break;
+				case PGP2PService.VERIFY_REPLY:
+					logger
+							.log(Level.INFO,
+									"Recieving a verify reply, sending the message do processVerifyReply.");
+					processVerifyReply(msg, srcAddr, dstAddr);
+					break;
+				case PGP2PService.SIGN_REQUEST:
+					logger
+							.log(Level.INFO,
+									"Recieving a sign request, sending the message to proccessSignRequest.");
+					processSignRequest(msg, srcAddr, dstAddr);
+					break;
+				case PGP2PService.SIGN_REPLY:
+					logger
+							.log(Level.INFO,
+									"Recieving a sign reply, sending the message do processSignReply.");
+					processSignReply(msg, srcAddr, dstAddr);
+					break;
+
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
 		}
-		
+
+	}
+
+	/**
+	 * Recieves a connection request from another Peer and must check if 
+	 * this Peer is in the local trust.
+	 * 
+	 * In case the requestor is not in trust list, a verifyRequest is sent 
+	 * for each Peer in local trust, to find someone who trusts the requestor.
+	 * If it's not found, a CONNECT_REPLY with NOT_IN_WEB_OF_TRUST is rerturned.
+	 * 
+	 * @param message
+	 * @param srcAddr
+	 * @param dstAddr
+	 * @throws IOException
+	 */
+	private void processConnectRequest(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr)
+			throws IOException {
+
+		logger.log(Level.INFO, "Processing CONNECT_REQUEST");
+
+		// TODO - process message and checks for trust
+		Message replyMessage = new PGP2PMessage()
+		.setUserID(message.getUserID())
+		.setKeyID(new Long(321))
+		.setArmoredPublicKey("BARBAR")
+		.setType(PGP2PService.CONNECT_REPLY);
+
+		sendMessage(message.getUserID(), replyMessage);
+	}
+
+	private void processConnectReply(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr) {
+
+		// TODO - validates reply and begins searching for other peers or giving
+		// a OK
+		logger.log(Level.INFO, "Processing CONNECT_REPLY");
+	}
+
+	private void processVerifyRequest(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr) {
+
+		// TODO - validates reply and begins searching for other peers or giving
+		// a OK
+		logger.log(Level.INFO, "Processing VERIFY_REPLY");
+	}
+
+	private void processVerifyReply(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr) {
+
+		// TODO - validates reply and begins searching for other peers or giving
+		// a OK
+		logger.log(Level.INFO, "Processing VERIFY_REPLY");
+	}
+
+	private void processSignRequest(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr) {
+
+		// TODO - verifies trust for the requestor and then sign its key with
+		// processSignReply
+		logger.log(Level.INFO, "Processing SIGN_REQUEST");
+	}
+
+	private void processSignReply(PGP2PMessage message,
+			EndpointAddress srcAddr, EndpointAddress dstAddr) {
+
+		// TODO - save the signature in the user's keychain
+		logger.log(Level.INFO, "Processing SIGN_REPLY");
+	}
+
+	private String dumpMessage(Message msg) {
+		String dump = "\n";
+		Iterator<String> ns = msg.getMessageNamespaces();
+		while (ns.hasNext()) {
+			String nameSpace = ns.next();
+			dump += ">>NameSpace: " + nameSpace + "\n";
+
+			Iterator<MessageElement> e = msg
+					.getMessageElementsOfNamespace(nameSpace);
+			while (e.hasNext()) {
+				MessageElement elem = e.next();
+				dump += elem.getElementName() + ": " + elem.toString() + "\n";
+			}
+			dump += "<<\n";
+		}
+		return dump;
 	}
 
 }

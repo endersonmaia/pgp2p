@@ -1,29 +1,23 @@
 package net.pgp2p.networkhandler;
 
-// TODO - convert to Enum
+// TODO - convert to Enum with constructor
 public class PGP2PService {
 
-	protected static final String NAME = "PGP2P_AUTH";
+	public static final int CONNECT_REQUEST	= 0;
+	public static final int CONNECT_REPLY	= 1;
+	public static final int VERIFY_REQUEST	= 2;
+	public static final int VERIFY_REPLY 	= 3;
+	public static final int SIGN_REQUEST		= 4;
+	public static final int SIGN_REPLY		= 5;
 	
-	protected static final int VERIFY_REQUEST	= 0;
-	protected static final int VERIFY_REPLY 		= 1;
-	protected static final int SIGN_REQUEST		= 2;
-	protected static final int SIGN_REPLY		= 3;
-	
-	protected static String[] PARAMS = new String[4];
-	
-	static {
-		PARAMS[0] = "verifyRequest";
-		PARAMS[1] = "verifyReply";
-		PARAMS[2] = "signRequest";
-		PARAMS[3] = "signReply";
-	}
-	
+	protected static final String NAMESPACE = "PGP2P_AUTH";
 
-public static void main(String[] args) {
-	for (int i = 0; i < PARAMS.length; i++) {
-		
-	}
-}
-
+	protected static final String[] PARAMS = {
+											"connectRequest",
+											"connectReply", 
+											"verifyRequest",
+											"verifyReply",
+											"signRequest",
+											"signReply"
+											};
 }
