@@ -1,6 +1,7 @@
 package net.pgp2p.cryptoservice;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -22,6 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPException;
@@ -55,6 +57,11 @@ public class PGPManager {
 	 */
 	private final static Logger logger = Logger.getLogger(PGPManager.class.getName()); 
 
+	/**
+	 * Singleton instance holder
+	 */
+	private static PGPManager instance = null;
+	
 	/**
 	 * Constantes que armazenam o nome padr‹o dos arquivos de chaves pœblicas e privadas.
 	 */
@@ -101,7 +108,7 @@ public class PGPManager {
 	 * @throws PGPException
 	 */
 	public PGPManager(String path) throws FileNotFoundException, IOException, PGPException {
-		logger.setLevel(Level.OFF);
+		
 		setKeyRingPath(path);
 
 		this.pubringFilePath = path + System.getProperty("file.separator") + PUBRING_FILE;
@@ -111,6 +118,21 @@ public class PGPManager {
 		secretKeyRing = new PGPSecretKeyRing(new FileInputStream(this.secringFilePath));
 		
 		prepareKeyRing();
+	}
+	
+	/**
+	 * Returns a unique instance of PGPManager.
+	 * @param path
+	 * @return
+	 * @throws PGPException 
+	 * @throws IOException 
+	 * @throws FileNotFoundException 
+	 */
+	public static PGPManager getInstance(String path) throws FileNotFoundException, IOException, PGPException {
+		if (instance == null) {
+			instance = new PGPManager(path);
+		} 
+		return instance;
 	}
 	
 	public String getKeyRingPath(){
@@ -133,16 +155,18 @@ public class PGPManager {
 		return pubKey;
 	}
 	
-	//TODO - generate armored public key to use in the JXTA MessageElements
 	public String getArmoredPublikKey() throws IOException, PGPException {
-		String armoredPK;
-		byte[] encoded = getPublicKey().getEncoded();
-		InputStream baii = new ByteArrayInputStream(encoded);
-		ArmoredInputStream aii = new ArmoredInputStream(baii);
-		while ( ! aii.isEndOfStream()) {
-			aii.read();
-		}
-		return "asd";
+		
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ArmoredOutputStream aos = new ArmoredOutputStream(baos);
+		
+		getPublicKey().encode(aos);
+		
+		aos.close();
+		baos.close();
+
+		String armoredPubKey = baos.toString();
+		return armoredPubKey;
 	}
 
 	public Iterator<PGPPublicKey> getPublicKeys() throws PGPException {
