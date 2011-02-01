@@ -1,5 +1,7 @@
 package net.pgp2p.networkhandler;
 
+import java.math.BigInteger;
+
 import net.jxta.endpoint.Message;
 import net.jxta.endpoint.MessageElement;
 import net.jxta.endpoint.StringMessageElement;
@@ -16,16 +18,17 @@ public class PGP2PMessage extends Message {
 	public static final String KEY_ID_FIELD		= "KEY_ID";
 	public static final String PUBLIC_KEY_FIELD	= "PUBLIC_KEY";
 	public static final String TYPE_FIELD 		= "TYPE";
-	
+	public static final String STATUS_FIELD		= "STATUS";
+
 	private String userID;
 	private long keyID;
 	private String armoredPublicKey;
 	private int type;
+	private int status;
 	
 	public PGP2PMessage fromMessage(Message message) {
-
-		this.setUserID(message.getMessageElement(NAMESPACE,	 USER_ID_FIELD).toString())
-			.setKeyID(Long.parseLong(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16))								
+		this.setUserID(message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString())
+			.setKeyID(new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue())
 			.setArmoredPublicKey(message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString())
 			.setType(Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString()));
 		return this;
@@ -80,4 +83,14 @@ public class PGP2PMessage extends Message {
 		return this.type;
 	}
 	
+	public PGP2PMessage setStatus(int status) {
+		this.status = status;
+		MessageElement elemUserID = new StringMessageElement(STATUS_FIELD, String.valueOf(status), null);
+		addMessageElement(NAMESPACE, elemUserID);
+		return this;
+	}
+	
+	public int getStatus() {
+		return this.status;
+	}
 }
