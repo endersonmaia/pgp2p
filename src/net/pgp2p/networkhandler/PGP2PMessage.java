@@ -27,10 +27,21 @@ public class PGP2PMessage extends Message {
 	private int status;
 	
 	public PGP2PMessage fromMessage(Message message) {
-		this.setUserID(message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString())
-			.setKeyID(new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue())
-			.setArmoredPublicKey(message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString())
-			.setType(Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString()));
+		
+		String userID, publicKey;
+		long keyID;
+		int type;
+		
+		userID		= message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString();
+		keyID 		= new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
+		publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
+		type		= Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString());
+		
+		this.setUserID(userID)
+			.setKeyID(keyID)
+			.setArmoredPublicKey(publicKey)
+			.setType(type);
+		
 		return this;
 	}
 
