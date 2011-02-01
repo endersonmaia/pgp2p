@@ -28,14 +28,10 @@ public class PGP2PMessage extends Message {
 	
 	public PGP2PMessage fromMessage(Message message) {
 		
-		String userID, publicKey;
-		long keyID;
-		int type;
-		
-		userID		= message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString();
-		keyID 		= new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
-		publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
-		type		= Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString());
+		String	userID		= message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString();
+		long	keyID 		= new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
+		String	publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
+		int		type		= Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString());
 		
 		this.setUserID(userID)
 			.setKeyID(keyID)
