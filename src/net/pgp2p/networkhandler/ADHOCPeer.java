@@ -8,6 +8,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPSignature;
 
 import net.jxta.endpoint.EndpointAddress;
 import net.jxta.endpoint.EndpointListener;
@@ -23,6 +25,8 @@ import net.jxta.peergroup.PeerGroupID;
 import net.jxta.platform.NetworkConfigurator;
 import net.jxta.platform.NetworkManager;
 import net.pgp2p.cryptoservice.PGPManager;
+import net.pgp2p.signservice.PGPSigner;
+import net.pgp2p.verifyservice.PGPVerify;
 
 public class ADHOCPeer implements EndpointListener {
 
@@ -41,6 +45,8 @@ public class ADHOCPeer implements EndpointListener {
 	private NetworkManager netManager;
 	private EndpointService endpointService;
 	private PGPManager pgpManager;
+	private PGPVerify verifyService;
+	private PGPSigner signService;
 
 	public ADHOCPeer(String username) {
 		this.username = username;
@@ -51,6 +57,8 @@ public class ADHOCPeer implements EndpointListener {
 		
 		try {
 			this.pgpManager = new PGPManager("./sandbox/gnupg-test/" + username);
+			this.verifyService = new PGPVerify(pgpManager);
+			this.signService = new PGPSigner(pgpManager);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -71,19 +79,6 @@ public class ADHOCPeer implements EndpointListener {
 				.getBytes());
 	}
 
-	public Message getHelloMessage(String username) {
-		Message msg = new Message();
-		StringMessageElement titleElement = new StringMessageElement("TITLE",
-				"Hello from " + username, null);
-		// StringMessageElement bodyElement = new StringMessageElement("BODY",
-		// "Hi " + username + ", \n" +
-		// "how are you ?"
-		// , null);
-		msg.addMessageElement("MSG", titleElement);
-		// msg.addMessageElement("MSG", bodyElement);
-		return msg;
-	}
-
 	public ADHOCPeer start() {
 		try {
 			netManager = new NetworkManager(NetworkManager.ConfigMode.ADHOC,
@@ -93,10 +88,12 @@ public class ADHOCPeer implements EndpointListener {
 
 			// Setting Configuration
 			netConfig.setUseMulticast(true);
-			netConfig.setTcpPort(Integer.parseInt(tcpPort));
-			netConfig.setTcpEnabled(true);
-			netConfig.setTcpIncoming(true);
-			netConfig.setTcpOutgoing(true);
+			
+			// ADHOC Mode doesn't need TCP configuration
+			//netConfig.setTcpPort(Integer.parseInt(tcpPort));
+			//netConfig.setTcpEnabled(true);
+			//netConfig.setTcpIncoming(true);
+			//netConfig.setTcpOutgoing(true);
 			netConfig.setPeerID(peerID);
 
 			netConfig.save();
@@ -262,15 +259,33 @@ public class ADHOCPeer implements EndpointListener {
 			throws IOException {
 
 		logger.log(Level.INFO, "Processing CONNECT_REQUEST");
-
+		
 		// TODO - process message and checks for trust
-		Message replyMessage = new PGP2PMessage()
-		.setUserID(message.getUserID())
-		.setKeyID(new Long(321))
-		.setArmoredPublicKey("BARBAR")
-		.setType(PGP2PService.CONNECT_REPLY);
 
-		sendMessage(message.getUserID(), replyMessage);
+
+		try {
+			Message replyMessage = new PGP2PMessage()
+			.setUserID(pgpManager.getUserID())
+			.setKeyID(pgpManager.getPublicKey().getKeyID())
+			.setArmoredPublicKey(pgpManager.getArmoredPublikKey())
+			.setType(PGP2PService.CONNECT_REPLY);
+			
+			if (verifyService.isTrusted(message.getArmoredPublicKey()) ) {
+
+				((PGP2PMessage) replyMessage).setStatus(PGP2PService.STATUS_OK);
+				sendMessage(message.getUserID(), replyMessage);
+
+			} else {
+
+				((PGP2PMessage) replyMessage).setStatus(PGP2PService.STATUS_ERROR);
+				sendMessage(message.getUserID(), replyMessage);
+
+			}
+		} catch (PGPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 	private void processConnectReply(PGP2PMessage message,
