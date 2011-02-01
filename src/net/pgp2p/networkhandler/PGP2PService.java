@@ -10,6 +10,9 @@ public class PGP2PService {
 	public static final int SIGN_REQUEST		= 4;
 	public static final int SIGN_REPLY		= 5;
 	
+	public static final int STATUS_OK = 0;
+	public static final int STATUS_ERROR = 1;
+	
 	protected static final String NAMESPACE = "PGP2P_AUTH";
 
 	protected static final String[] PARAMS = {
