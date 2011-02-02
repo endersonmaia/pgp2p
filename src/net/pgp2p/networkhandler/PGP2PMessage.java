@@ -75,8 +75,7 @@ public class PGP2PMessage extends Message {
 		if (message.getMessageElement(NAMESPACE, TRACK_FIELD) != null ) {
 			String element = message.getMessageElement(NAMESPACE, TRACK_FIELD).toString();
 			
-			int elementSize = element.length() - 1; 
-			element = element.substring(1, elementSize);
+			element = element.replace("[", "").replace("]", "");
 			
 			track.clear();
 			track.addAll(Arrays.asList( element.split( ", " ) ));

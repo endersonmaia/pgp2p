@@ -186,7 +186,16 @@ public class ADHOCPeer implements EndpointListener {
 		EndpointAddress addr = new EndpointAddress(peerID,
 				PGP2PService.NAMESPACE, PGP2PService.PARAMS[message.getType()]);
 
+		
 		Messenger messenger = endpointService.getMessenger(addr);
+		
+		//FIXME - check for Messenger status instead of this hardcoded timeout
+		long t0 = System.currentTimeMillis();  
+		long timeOut= 5000; // ms
+		
+		while ( (messenger == null) || (System.currentTimeMillis() - t0 < timeOut) )  {
+			messenger = endpointService.getMessenger(addr);
+		}
 
 		// verify if the endpoint is reachable ...
 		if ( messenger != null ) {	
@@ -461,6 +470,9 @@ public class ADHOCPeer implements EndpointListener {
 		
 		if ( message.getStatus() == PGP2PService.STATUS_OK) {
 			logger.log(Level.INFO, "Recieved VERIFY_REPLY with STATUS_OK");
+			
+			// TODO - if the verify reply was OK, import the publicKey in local keyRing
+			// via signRequest
 		} else {
 			logger.log(Level.INFO, "Recieved VERIFY_REPLY with STATUS_ERRROR");
 		}
