@@ -39,6 +39,7 @@ public class PGPSigner {
 	public PGPSigner(String path) {
 		
 		try {
+			//this.manager = PGPManager.getInstance(path);
 			this.manager = new PGPManager(path);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block

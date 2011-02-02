@@ -150,17 +150,38 @@ public class PGPManager {
 	 * @throws PGPException 
 	 */
 	public PGPPublicKey getPublicKey() throws PGPException  {
-		PGPPublicKey pubKey = this.publicKeyRing.getPublicKey(getSecretKey().getKeyID());
-		logger.log(Level.INFO, "Returninig public key "+ Long.toHexString(pubKey.getKeyID()));
+		//TODO - convert keyID to a field
+		long keyID = getSecretKey().getKeyID();
+		
+		PGPPublicKey pubKey = this.publicKeyRing.getPublicKey(keyID);
+		logger.log(Level.INFO, "Returninig public key "+ Long.toHexString(keyID));
 		return pubKey;
 	}
 	
+	
+	/**
+	 * Return the user's publicKey in ASCII armored.
+	 * 
+	 * @return
+	 * @throws IOException
+	 * @throws PGPException
+	 */
 	public String getArmoredPublikKey() throws IOException, PGPException {
-		
+		return getArmoredPublicKey(getPublicKey());
+	}
+	
+	/**
+	 * Return the passed publicKey in ASCII armored.
+	 * 
+	 * @param pubKey
+	 * @return
+	 * @throws IOException 
+	 */
+	public static String getArmoredPublicKey(PGPPublicKey pubKey) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ArmoredOutputStream aos = new ArmoredOutputStream(baos);
 		
-		getPublicKey().encode(aos);
+		pubKey.encode(aos);
 		
 		aos.close();
 		baos.close();
@@ -180,10 +201,20 @@ public class PGPManager {
 	 *  
 	 * @return String
 	 * @throws PGPException 
+	 * @throws PGPException 
 	 */
 	public String getUserID() throws PGPException {
-		
-		PGPPublicKey pubKey = getPublicKey();
+		return getUserID(getPublicKey());
+	}
+	
+	/**
+	 * Recupera o userID da chave pœblica fornecida.
+	 * 
+	 * @param pubKey
+	 * @return
+	 */
+	public static String getUserID(PGPPublicKey pubKey) {
+
 		String userID = (String) pubKey.getUserIDs().next();
 		
 		logger.log(Level.INFO,"userID: " + userID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
@@ -209,7 +240,7 @@ public class PGPManager {
             trustedKeyID = pubKey.getKeyID();
             if( trustedKeyID != ownerKeyID) {
             	trustedPubKeys.add(pubKey);
-            	logger.log(Level.INFO,"userID: " + trustedKeyID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
+            	logger.log(Level.INFO,"Found trusted userID: " + trustedKeyID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
             }
         }
 

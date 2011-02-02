@@ -12,6 +12,9 @@ public class PGP2PService {
 	
 	public static final int STATUS_OK = 0;
 	public static final int STATUS_ERROR = 1;
+	public static final int STATUS_ERROR_LIMIT_SEARCH_DEPTH_EXCEEDED = 2;
+	
+	public static final int LIMIT_VERIFY_DEPTH = 2;
 	
 	protected static final String NAMESPACE = "PGP2P_AUTH";
 
