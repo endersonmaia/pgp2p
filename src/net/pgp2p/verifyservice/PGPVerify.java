@@ -15,7 +15,6 @@ import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPSignatureList;
 
 public class PGPVerify {
 	
@@ -63,11 +62,11 @@ public class PGPVerify {
 			logger.log(Level.INFO, "A chave "+ Long.toHexString(pubKey.getKeyID()) + " fornecida por " +pubKey.getUserIDs().next() + " n‹o existe na base local.");
 			return false;
 		} else {
-			Iterator sigs = pubKeyToVerify.getSignatures();
+			Iterator<PGPSignature> sigs = pubKeyToVerify.getSignatures();
 			PGPSignature sign = null;
 			
 			while (sigs.hasNext()) {
-				sign = (PGPSignature) sigs.next();
+				sign = sigs.next();
 				if (sign.getKeyID() == manager.getPublicKey().getKeyID()) {
 					logger.log(Level.INFO, manager.getUserID() + " CONFIA (tem a pubKey e assinou) em " + pubKey.getUserIDs().next());
 					return true;
