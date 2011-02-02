@@ -75,8 +75,6 @@ public class PGP2PMessage extends Message {
 		if (message.getMessageElement(NAMESPACE, TRACK_FIELD) != null ) {
 			String element = message.getMessageElement(NAMESPACE, TRACK_FIELD).toString();
 			
-			element = element.replace("[", "").replace("]", "");
-			
 			track.clear();
 			track.addAll(Arrays.asList( element.split( ", " ) ));
 		}
@@ -185,7 +183,7 @@ public class PGP2PMessage extends Message {
 	public PGP2PMessage addTrack(List<String> tracks) {
 		this.track.addAll(tracks);
 		
-		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, track.toString(), null);
+		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, track.toString().replace("[", "").replace("]", ""), null);
 		replaceMessageElement(NAMESPACE, elemTrack);
 		
 		return this;
