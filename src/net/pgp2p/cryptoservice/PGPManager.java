@@ -237,7 +237,7 @@ public class PGPManager {
             trustedKeyID = pubKey.getKeyID();
             if( trustedKeyID != ownerKeyID) {
             	trustedPubKeys.add(pubKey);
-            	logger.log(Level.INFO,"Found trusted userID: " + trustedKeyID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
+            	logger.log(Level.INFO,"Found trusted userID: " + getUserID(pubKey) +", keyID: "+Long.toHexString(pubKey.getKeyID()));
             }
         }
 
