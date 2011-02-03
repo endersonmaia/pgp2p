@@ -1,0 +1,14 @@
+h1. PGP2P
+
+h2. Objetive
+
+This project is an experiment that I'm doing with OpenPGP and Peer2Peer network. It's on early stage, and have nothing realy usable untill now.
+
+h2. Goals
+
+* Implement a distributed authentication mechanism based on OpenPGP and P2P;
+* use alien technologies;
+* get rich.
+
+
+Enderson Maia @<endersonmaia -at- gmail -dot- com>@
