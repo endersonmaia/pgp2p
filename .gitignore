@@ -2,6 +2,7 @@ sandbox
 lib
 bin
 doc/*
+log/*.log
 .jxta
 .settings
 .classpath
