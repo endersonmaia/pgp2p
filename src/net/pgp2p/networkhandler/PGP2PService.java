@@ -14,16 +14,16 @@ public class PGP2PService {
 	public static final int STATUS_ERROR = 1;
 	public static final int STATUS_ERROR_LIMIT_SEARCH_DEPTH_EXCEEDED = 2;
 	
-	public static final int LIMIT_VERIFY_DEPTH = 2;
+	public static final int LIMIT_VERIFY_DEPTH = 4;
 	
-	protected static final String NAMESPACE = "PGP2P_AUTH";
+	protected static final String NAMESPACE = "pgp2p_auth";
 
 	protected static final String[] PARAMS = {
-											"connectRequest",
-											"connectReply", 
-											"verifyRequest",
-											"verifyReply",
-											"signRequest",
-											"signReply"
+											"connect_request",
+											"connect_reply", 
+											"verify_request",
+											"verify_reply",
+											"sign_request",
+											"sign_reply"
 											};
 }
