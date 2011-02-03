@@ -3,6 +3,8 @@ package net.pgp2p.networkhandler;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 
 import net.jxta.endpoint.Message;
@@ -19,7 +21,7 @@ public class PGP2PMessage extends Message {
 	private static final String NAMESPACE 		= PGP2PService.NAMESPACE;
 	public static final String SOURCE_USER_ID_FIELD = "SOURCE_USER_ID";
 	public static final String FINAL_USER_ID_FIELD	= "FINAL_USER_ID";
-	public static final String USER_ID_FIELD		= "USER_ID";
+	public static final String FROM_USER_ID_FIELD = "FROM_USER_ID";
 	public static final String KEY_ID_FIELD		= "KEY_ID";
 	public static final String PUBLIC_KEY_FIELD	= "PUBLIC_KEY";
 	public static final String TYPE_FIELD 		= "TYPE";
@@ -29,22 +31,23 @@ public class PGP2PMessage extends Message {
 
 	private String sourceUserID;
 	private String finalUserID;
-	private String userID;
+	private String fromUserID;
+
 	private long keyID;
 	private String armoredPublicKey;
 	private int type;
 	private int status;
-	private List<String> track = new ArrayList<String>();
+	private Collection<String> track = new HashSet<String>();
 	private boolean isFromConnect = false;
 	
 	public PGP2PMessage fromMessage(Message message) {
 		
-		String	userID		= message.getMessageElement(NAMESPACE,USER_ID_FIELD).toString();
+		String 	fromUserID	= message.getMessageElement(NAMESPACE, FROM_USER_ID_FIELD).toString();
 		long	keyID 		= new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
 		String	publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
 		int		type		= Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString());
 
-		this.setUserID(userID)
+		this.setFromUserID(fromUserID)
 			.setKeyID(keyID)
 			.setArmoredPublicKey(publicKey)
 			.setType(type);
@@ -70,13 +73,13 @@ public class PGP2PMessage extends Message {
 			this.setFinalUserID(finalUserID);
 		}
 		
-		List<String> track = new ArrayList<String>();
+		List<String> tracks = new ArrayList<String>();
 		
 		if (message.getMessageElement(NAMESPACE, TRACK_FIELD) != null ) {
 			String element = message.getMessageElement(NAMESPACE, TRACK_FIELD).toString();
-			
-			track.clear();
-			track.addAll(Arrays.asList( element.split( ", " ) ));
+			tracks.addAll(Arrays.asList( element.split( ", " ) ));
+			this.track.clear();
+			this.addTrack(tracks);
 		}
 		
 		boolean isFromConnect = false;
@@ -92,18 +95,7 @@ public class PGP2PMessage extends Message {
 	public PGP2PMessage() {
 		super();
 	}
-	
-	public PGP2PMessage setUserID(String userID) {
-		this.userID = userID;
-		MessageElement elemUserID = new StringMessageElement(USER_ID_FIELD, userID, null);
-		replaceMessageElement(NAMESPACE, elemUserID);
-		return this;
-	}
-	
-	public String getUserID() {
-		return this.userID;
-	}
-	
+
 	public PGP2PMessage setKeyID(Long keyID) {
 		this.keyID = keyID;
 		MessageElement elemKeyID = new StringMessageElement(KEY_ID_FIELD, Long.toHexString(keyID), null);
@@ -117,7 +109,6 @@ public class PGP2PMessage extends Message {
 	
 	public PGP2PMessage setArmoredPublicKey(String publicKey) {
 		this.armoredPublicKey = publicKey;
-		// FIXME - avaliar o uso de TextDocumentElement
 		MessageElement elemArmoredPublicKey = new StringMessageElement(PUBLIC_KEY_FIELD, publicKey, null);
 		replaceMessageElement(NAMESPACE, elemArmoredPublicKey);
 		return this;
@@ -171,25 +162,36 @@ public class PGP2PMessage extends Message {
 	public String getFinalUserID() {
 		return this.finalUserID;
 	}
+	
+	public PGP2PMessage setFromUserID(String fromUserID) {
+		this.fromUserID = fromUserID;
+		MessageElement elemFromUserID = new StringMessageElement(FROM_USER_ID_FIELD, fromUserID, null);
+		replaceMessageElement(NAMESPACE, elemFromUserID);
+		return this;
+	}
+	
+	public String getFromUserID() {
+		return this.fromUserID;
+	}
 
 	public PGP2PMessage addTrack(String track) {
 		this.track.add(track);
 		
-		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, track.toString(), null);
+		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, this.track.toString().replace("[", "").replace("]", ""), null);
 		replaceMessageElement(NAMESPACE, elemTrack);
 		return this;
 	}
 	
-	public PGP2PMessage addTrack(List<String> tracks) {
+	public PGP2PMessage addTrack(Collection<String> tracks) {
 		this.track.addAll(tracks);
 		
-		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, track.toString().replace("[", "").replace("]", ""), null);
+		MessageElement elemTrack = new StringMessageElement(TRACK_FIELD, this.track.toString().replace("[", "").replace("]", ""), null);
 		replaceMessageElement(NAMESPACE, elemTrack);
 		
 		return this;
 	}
 
-	public List<String> getTrack() {
+	public Collection<String> getTrack() {
 		return this.track;
 	}
 
