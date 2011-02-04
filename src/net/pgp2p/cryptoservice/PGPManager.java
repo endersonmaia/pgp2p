@@ -1,5 +1,6 @@
 package net.pgp2p.cryptoservice;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,18 +15,21 @@ import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
+import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
@@ -151,10 +155,26 @@ public class PGPManager {
 		long keyID = getSecretKey().getKeyID();
 		
 		PGPPublicKey pubKey = this.publicKeyRing.getPublicKey(keyID);
-		logger.log(Level.INFO, "Returninig public key "+ Long.toHexString(keyID));
+		logger.log(Level.FINE, "Returninig public key "+ Long.toHexString(keyID));
 		return pubKey;
 	}
 	
+	public String getArmoredPublicKeyRing() throws IOException, PGPException {
+		return getArmoredPublicKeyRing(publicKeyRing.getPublicKeyRing(getPublicKey().getKeyID()));
+	}
+	
+	public static String getArmoredPublicKeyRing(PGPPublicKeyRing pubKeyRing) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ArmoredOutputStream aos = new ArmoredOutputStream(baos);
+		
+		pubKeyRing.encode(aos);
+		
+		aos.close();
+		baos.close();
+
+		String armoredPubKeyRing = baos.toString();
+		return armoredPubKeyRing;
+	}
 	
 	/**
 	 * Return the user's publicKey in ASCII armored.
@@ -163,7 +183,7 @@ public class PGPManager {
 	 * @throws IOException
 	 * @throws PGPException
 	 */
-	public String getArmoredPublikKey() throws IOException, PGPException {
+	public String getArmoredPublicKey() throws IOException, PGPException {
 		return getArmoredPublicKey(getPublicKey());
 	}
 	
@@ -187,9 +207,27 @@ public class PGPManager {
 		return armoredPubKey;
 	}
 
+	/**
+	 * Returns a PGPPublicKey for the givenn armoredPublicKey.
+	 * 
+	 * @param armoredPubKey
+	 * @return
+	 * @throws IOException 
+	 */
+	public static PGPPublicKey getPublicKey(String armoredPubKey) throws IOException {
+		
+		ByteArrayInputStream bais = new ByteArrayInputStream(armoredPubKey.getBytes());
+		ArmoredInputStream ais = new ArmoredInputStream(bais);
+		PGPObjectFactory	pgpFact		= new PGPObjectFactory(ais); 
+		PGPPublicKeyRing	pgpPub		= (PGPPublicKeyRing)pgpFact.nextObject();
+		PGPPublicKey 		pubKey		= pgpPub.getPublicKey();
+		
+		return pubKey;
+	}
+
 	public Iterator<PGPPublicKey> getPublicKeys() throws PGPException {
 		Iterator<PGPPublicKey> pubKeys = this.publicKeyRing.getPublicKeyRing(getPublicKey().getKeyID()).getPublicKeys();
-		logger.log(Level.INFO, "Returninig publickeys for user " + getUserID());
+		logger.log(Level.FINE, "Returninig publickeys for user " + getUserID());
 		return pubKeys;		
 	}
 
@@ -213,21 +251,20 @@ public class PGPManager {
 	public static String getUserID(PGPPublicKey pubKey) {
 
 		String userID = (String) pubKey.getUserIDs().next();
-		
-		logger.log(Level.INFO,"userID: " + userID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
+		logger.log(Level.FINE,"userID: " + userID+", keyID: "+Long.toHexString(pubKey.getKeyID()));
 		return userID;
 	}
 	
 	/**
-	 * Returns a list of Users ID that exists in the local publicKeyRing
+	 * Returns a list of PublicKeys that exists in the local publicKeyRing
 	 * 
 	 * @return List<PGPPUblicKeys>
 	 * @throws PGPException 
 	 */
-	public List<PGPPublicKey> getTrustedPublicKeys() throws PGPException {
+	public Collection<PGPPublicKey> getTrustedPublicKeys() throws PGPException {
 		
 		Iterator<PGPPublicKeyRing>    rIt = this.publicKeyRing.getKeyRings();
-		List<PGPPublicKey> trustedPubKeys = new ArrayList<PGPPublicKey>();
+		Collection<PGPPublicKey> trustedPubKeys = new ArrayList<PGPPublicKey>();
 
 		long ownerKeyID	= getSecretKey().getKeyID();
 		long trustedKeyID;
@@ -235,13 +272,45 @@ public class PGPManager {
         while (rIt.hasNext()) {
             PGPPublicKey pubKey = (PGPPublicKey)rIt.next().getPublicKey();
             trustedKeyID = pubKey.getKeyID();
+            
+            String userID = getUserID(pubKey);
+            String keyID = Long.toHexString(pubKey.getKeyID());
+            
             if( trustedKeyID != ownerKeyID) {
             	trustedPubKeys.add(pubKey);
-            	logger.log(Level.INFO,"Found trusted userID: " + getUserID(pubKey) +", keyID: "+Long.toHexString(pubKey.getKeyID()));
+            	logger.log(Level.FINE,"Found trusted userID: " + userID +", keyID: "+ keyID);
             }
         }
 
 		return trustedPubKeys;
+	}
+	
+	/**
+	 * Returns a list of the User's IDs that exists in the local publicKeyRing
+	 */
+	
+	public Collection<String> getTrustedUserIDs() {
+		Iterator<PGPPublicKeyRing>    rIt = this.publicKeyRing.getKeyRings();
+		Collection<String> trustedUserIDs = new ArrayList<String>();
+
+		long ownerKeyID	= getSecretKey().getKeyID();
+		long trustedKeyID;
+		
+        while (rIt.hasNext()) {
+            PGPPublicKey pubKey = (PGPPublicKey)rIt.next().getPublicKey();
+            
+            trustedKeyID = pubKey.getKeyID();
+            String userID = getUserID(pubKey);
+            String keyID = Long.toHexString(pubKey.getKeyID());
+            
+            if( trustedKeyID != ownerKeyID) {
+            	trustedUserIDs.add(userID);
+            	logger.log(Level.FINE,"Found trusted userID: " + userID +", keyID: "+ keyID);
+            }
+        }
+
+		return trustedUserIDs;
+
 	}
 	
 	/**
@@ -258,7 +327,7 @@ public class PGPManager {
 		PGPPublicKey pubKey;
 		if (keyRings.hasNext()) {
 			pubKey = keyRings.next().getPublicKey();
-			logger.log(Level.INFO, "Found key " + Long.toHexString(pubKey.getKeyID()) + " when searching for "+ userID);
+			logger.log(Level.FINE, "Found key " + Long.toHexString(pubKey.getKeyID()) + " when searching for "+ userID);
 			return pubKey;
 		} else {
 			return null;
@@ -280,9 +349,9 @@ public class PGPManager {
 			File dir = new File(this.keyRingPath);
 			if ( ! dir.exists() ) {
 				dir.mkdirs();
-				logger.log(Level.INFO, "Criando diret—rio " + this.keyRingPath + ".");
+				logger.log(Level.FINE, "Creating directory" + this.keyRingPath + ".");
 			} else {
-				logger.log(Level.INFO, "Diret—rio informado j‡ existe.");
+				logger.log(Level.FINE, "Directory already exist, using it.");
 			}
 			
 		}
@@ -406,7 +475,7 @@ public class PGPManager {
 	public PGPSecretKey getSecretKey() {
 		
 		PGPSecretKey secKey = this.secretKeyRing.getSecretKey();
-		logger.log(Level.INFO, "Returning private key "+ Long.toHexString(secKey.getKeyID()));
+		logger.log(Level.FINE, "Returning private key "+ Long.toHexString(secKey.getKeyID()));
 		return secKey;
 	}
 	

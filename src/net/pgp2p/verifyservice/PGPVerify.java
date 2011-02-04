@@ -59,7 +59,7 @@ public class PGPVerify {
 		PGPPublicKey pubKeyToVerify = manager.publicKeyRing.getPublicKey(pubKey.getKeyID());
 		
 		if ( pubKeyToVerify == null) {
-			logger.log(Level.INFO, "A chave "+ Long.toHexString(pubKey.getKeyID()) + " fornecida por " +pubKey.getUserIDs().next() + " n‹o existe na base local.");
+			logger.log(Level.INFO, "A chave "+ Long.toHexString(pubKey.getKeyID()).toUpperCase().substring(8, 16) + " n‹o existe na base local.");
 			return false;
 		} else {
 			Iterator<PGPSignature> sigs = pubKeyToVerify.getSignatures();
@@ -86,14 +86,8 @@ public class PGPVerify {
 	 * @throws IOException
 	 * @throws PGPException
 	 */
-	public boolean isTrusted(String armoredPubKey) throws IOException, PGPException {
-		//byte[]				pubKeyBytes	= Base64.decode(armoredPubKey);	
-
-		ByteArrayInputStream bais = new ByteArrayInputStream(armoredPubKey.getBytes());
-		ArmoredInputStream ais = new ArmoredInputStream(bais);
-		PGPObjectFactory	pgpFact		= new PGPObjectFactory(ais); 
-		PGPPublicKeyRing	pgpPub		= (PGPPublicKeyRing)pgpFact.nextObject();
-		PGPPublicKey 		pubKey		= pgpPub.getPublicKey(); 
+	public boolean isTrusted(String armoredPubKey) throws IOException, PGPException {	
+		PGPPublicKey 		pubKey		= PGPManager.getPublicKey(armoredPubKey); 
 
 		return isTrusted(pubKey); 
 	}

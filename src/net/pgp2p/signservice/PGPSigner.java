@@ -57,7 +57,6 @@ public class PGPSigner {
 		this.manager = manager;
 	}
 
-	
 	/**
 	 * Signs a given public key.
 	 *  
@@ -68,50 +67,62 @@ public class PGPSigner {
 	 * @throws SignatureException 
 	 * @throws IOException 
 	 */
-	public void sign(Iterator<PGPPublicKey> pubKeys) throws PGPException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException, IOException {
+	public void signPublicKey(Iterator<PGPPublicKey> pubKeys) throws PGPException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException, IOException {
+		while (pubKeys.hasNext()) {
+			PGPPublicKey pubKey = pubKeys.next();
+			importKey(pubKey);
+			if (pubKey.isMasterKey()) {
+				//TODO - sign keys
+			}
+		}
+	}
 
-		// IMPORTANT
-		// Ž considerado que toda chave tem apenas uma sub chave
+	public void signPublicKey(PGPPublicKey publicKey) throws IOException, PGPException {
 		
-		PGPPublicKey masterKey = pubKeys.next();
+		importKey(publicKey);
+		// TODO - sign imported keys
 		
-		logger.log(Level.INFO, manager.getUserID() + " assinando chave "+ Long.toHexString(masterKey.getKeyID())  +" de " + masterKey.getUserIDs().next());
+//      PGPSecretKey             pgpSec = manager.getSecretKey();
+//      PGPPrivateKey            pgpPrivKey = pgpSec.extractPrivateKey("".toCharArray(), "BC");
+//      
+//      PGPSignatureGenerator    sGen = new PGPSignatureGenerator(pgpSec.getPublicKey().getAlgorithm(), PGPUtil.SHA1, "BC");
+//      
+//      sGen.initSign(PGPSignature.DEFAULT_CERTIFICATION, pgpPrivKey);
+//      
+//      PGPSignature signature = sGen.generateCertification(pubKey);
+//      
+//		PGPPublicKey.addCertification(pubKey, signature);
+//
+//		PGPPublicKey pubKeyInsideKeyRing = manager.getPublicKeyByUserID((String) pubKey.getUserIDs().next());
+//		
+//		if ( pubKeyInsideKeyRing != null) {
+//			System.out.println("Chave " + Long.toHexString(pubKeyInsideKeyRing.getKeyID()) + " encontrada no keyRing");    			
+//		} else {
+//			System.out.println("N‹o foi opssivel encontrar a chave fornecida dentro do keyring");
+//		}
+//			
+	}
+	
+	private void importKey(PGPPublicKey publicKey) throws PGPException, IOException {
+
+		
+		//if ( manager.getTrustedPublicKeys().contains(publicKey) ) {
+		if (manager.publicKeyRing.getPublicKey(publicKey.getKeyID()) != null) {
+			logger.log(Level.INFO, manager.getUserID() + " j‡ tem a chave "+ Long.toHexString(publicKey.getKeyID()));
+			return;
+		}
 		
 		PGPVerify verify = new PGPVerify(manager);
 		
-		if (! verify.isTrusted(masterKey)) {
-			System.out.println("Tem que importar e assinar!");
-            
-    		PGPPublicKeyRing newPubKeyRing = new PGPPublicKeyRing(masterKey.getEncoded());
-    		newPubKeyRing = PGPPublicKeyRing.insertPublicKey(newPubKeyRing, pubKeys.next());
+		if (! verify.isTrusted(publicKey) ) {
+			
+			logger.log(Level.INFO, manager.getUserID() + " importando a chave "+ Long.toHexString(publicKey.getKeyID()).toUpperCase().substring(8, 16));
+           
+    		PGPPublicKeyRing newPubKeyRing = new PGPPublicKeyRing(publicKey.getEncoded());
     		
     		manager.publicKeyRing = PGPPublicKeyRingCollection.addPublicKeyRing(manager.publicKeyRing, newPubKeyRing);
     		manager.savePublicKeyRing();
-
- 
-    		// TODO - sign imported keys
-    		
-//            PGPSecretKey             pgpSec = manager.getSecretKey();
-//            PGPPrivateKey            pgpPrivKey = pgpSec.extractPrivateKey("".toCharArray(), "BC");
-//            
-//            PGPSignatureGenerator    sGen = new PGPSignatureGenerator(pgpSec.getPublicKey().getAlgorithm(), PGPUtil.SHA1, "BC");
-//            
-//            sGen.initSign(PGPSignature.DEFAULT_CERTIFICATION, pgpPrivKey);
-//            
-//            PGPSignature signature = sGen.generateCertification(pubKey);
-//            
-//    		PGPPublicKey.addCertification(pubKey, signature);
-//
-//    		PGPPublicKey pubKeyInsideKeyRing = manager.getPublicKeyByUserID((String) pubKey.getUserIDs().next());
-//    		
-//    		if ( pubKeyInsideKeyRing != null) {
-//    			System.out.println("Chave " + Long.toHexString(pubKeyInsideKeyRing.getKeyID()) + " encontrada no keyRing");    			
-//    		} else {
-//    			System.out.println("N‹o foi opssivel encontrar a chave fornecida dentro do keyring");
-//    		}
-//    			
-    		
-    		
-        }
+		}
+		return;
 	}
 }

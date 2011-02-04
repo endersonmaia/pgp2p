@@ -13,6 +13,8 @@ public class PGP2PService {
 	public static final int STATUS_OK = 0;
 	public static final int STATUS_ERROR = 1;
 	public static final int STATUS_ERROR_LIMIT_SEARCH_DEPTH_EXCEEDED = 2;
+	public static final int STATUS_ERROR_CANT_ACCEPT_FROM_UTRUSTED_USER = 4;
+	public static final int STATUS_ERROR_NOT_CONNECTING_TO_FINAL_USER = 8;
 	
 	public static final int LIMIT_VERIFY_DEPTH = 4;
 	
@@ -26,4 +28,5 @@ public class PGP2PService {
 											"sign_request",
 											"sign_reply"
 											};
+
 }

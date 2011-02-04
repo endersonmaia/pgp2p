@@ -161,7 +161,7 @@ public class ADHOCPeer implements EndpointListener {
 	 */
 	public void sendMessage(PeerID peerID, Message msg) {
 		
-		logger.log(Level.FINE, "--++ SENDING MESSAGE ++--\n" + dumpMessage(msg));
+		logger.log(Level.INFO, "--++ SENDING MESSAGE ++--\n" + dumpMessage(msg));
 
 		// gets the message
 		PGP2PMessage message = new PGP2PMessage().fromMessage(msg);
@@ -220,6 +220,21 @@ public class ADHOCPeer implements EndpointListener {
 	 * @param msg
 	 */
 	public void sendMessage(String username, Message msg) {
+		// gets the message
+		PGP2PMessage message = new PGP2PMessage().fromMessage(msg);
+		String messageType = PGP2PService.PARAMS[message.getType()];
+		
+		String status = " ";
+		if (message.getStatus() != PGP2PService.STATUS_OK) {
+			status += "with STATUS_ERROR Code: " + message.getStatus();			
+		} else {
+			status += "with STATUS_OK";
+		}
+		
+		logger.log(Level.INFO, "Sending a " + 
+				 messageType.toUpperCase() +
+				" to " + username + status);
+		
 		sendMessage(getPeerIDforUserame(username), msg);
 	}
 
@@ -232,7 +247,7 @@ public class ADHOCPeer implements EndpointListener {
 	public void processIncomingMessage(Message message,
 			EndpointAddress srcAddr, EndpointAddress dstAddr) {
 
-		logger.log(Level.FINE, "--++ ARRIVING MESSAGE ++--\n" + dumpMessage(message));
+		logger.log(Level.INFO, "--++ ARRIVING MESSAGE ++--\n" + dumpMessage(message));
 
 		PGP2PMessage msg = new PGP2PMessage().fromMessage(message);
 
@@ -282,7 +297,7 @@ public class ADHOCPeer implements EndpointListener {
 	private void processConnectRequest(PGP2PMessage message) 
 	throws IOException {
 
-		logger.log(Level.INFO, "Processing CONNECT_REQUEST");
+		logger.log(Level.INFO, "Processing CONNECT_REQUEST from " + message.getFromUserID());
 		
 		try {
 			PGP2PMessage replyMessage = new PGP2PMessage()
@@ -293,19 +308,17 @@ public class ADHOCPeer implements EndpointListener {
 				.setArmoredPublicKey(message.getArmoredPublicKey())
 				.setType(PGP2PService.CONNECT_REPLY);
 			
-			if (verifyService.isTrusted(message.getArmoredPublicKey()) ) {
-				
-				logger.log(Level.INFO, "Sending CONNECT_REPLY with STATUS_OK to " + message.getFromUserID());
-				replyMessage.setStatus(PGP2PService.STATUS_OK);
-				sendMessage(message.getFromUserID(), replyMessage);
-
+			if ( message.getFinalUserID().equals(username) ) {
+				if (verifyService.isTrusted(message.getArmoredPublicKey()) ) {
+					replyMessage.setStatus(PGP2PService.STATUS_OK);
+				} else {
+					replyMessage.setStatus(PGP2PService.STATUS_ERROR);
+				}				
 			} else {
-
-				logger.log(Level.INFO, "Sending CONNECT_REPLY with STATUS_ERROR to " + message.getFromUserID());
-				replyMessage.setStatus(PGP2PService.STATUS_ERROR);
-				sendMessage(message.getFromUserID(), replyMessage);
-
+				replyMessage.setStatus(PGP2PService.STATUS_ERROR_NOT_CONNECTING_TO_FINAL_USER);
 			}
+			
+			sendMessage(message.getFromUserID(), replyMessage);
 		} catch (PGPException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -327,17 +340,22 @@ public class ADHOCPeer implements EndpointListener {
 			PGP2PMessage message) 
 	throws IOException {
 
-		logger.log(Level.INFO, "Processing CONNECT_REPLY");
+		logger.log(Level.INFO, "Processing CONNECT_REPLY from " + message.getFromUserID());
 		
 		switch (message.getStatus()) {
 			case PGP2PService.STATUS_OK:
 				logger.log(Level.INFO, "Recieved CONNECT_REPLY with STATUS_OK from " + message.getFromUserID());
 				break;
 				
+			case PGP2PService.STATUS_ERROR_NOT_CONNECTING_TO_FINAL_USER:
+				logger.log(Level.INFO, "Recieved CONNECT_REPLY with STATUS_ERROR from " 
+						+ message.getFromUserID()
+						+ " Code: " + message.getStatus());
+				break;
+
 			case PGP2PService.STATUS_ERROR:
 				logger.log(Level.INFO, "Recieved CONNECT_REPLY with STATUS_ERROR from " + message.getFromUserID());
 			
-				logger.log(Level.INFO, "Sending a VERIFY_REQUEST back to " + message.getFromUserID());
 				PGP2PMessage verifyRequest = new PGP2PMessage()
 					.setFromUserID(username)
 					.setFinalUserID(message.getFinalUserID())						
@@ -366,7 +384,8 @@ public class ADHOCPeer implements EndpointListener {
 	 */
 	private void processVerifyRequest(PGP2PMessage message) throws IOException {
 		
-		logger.log(Level.INFO, "Processing VERIFY_REQUEST");
+		logger.log(Level.INFO, "Processing VERIFY_REQUEST from " + message.getFromUserID());
+				
 		try {
 			/*
 			 *  Se n‹o veio de um connectReply com STATUS_ERROR
@@ -377,34 +396,59 @@ public class ADHOCPeer implements EndpointListener {
 					+ username + "'s keyring for trust information about " 
 					+ message.getSourceUserID());
 
-			if ( ! message.isFromConnect() && verifyService.isTrusted(message.getArmoredPublicKey()) ) {
+			if ( ! message.isFromConnect() ) {
+				
+				if ( ! pgpManager.getTrustedUserIDs().contains(message.getFromUserID()) ) {
+					
+					logger.log(Level.INFO, "Can't accept a VERIFY_REQUEST from a untrusted user.");
+					
+					PGP2PMessage verifyReply = new PGP2PMessage()
+						.setFromUserID(username)
+						//.setFinalUserID(message.getFinalUserID())
+						//.setSourceUserID(message.getSourceUserID())
+						//.setKeyID(message.getKeyID())
+						//.setArmoredPublicKey(message.getArmoredPublicKey())
+						.setType(PGP2PService.VERIFY_REPLY)
+						.setStatus(PGP2PService.STATUS_ERROR_CANT_ACCEPT_FROM_UTRUSTED_USER);
 
-				logger.log(Level.INFO, username + " trusts " + message.getSourceUserID() + "'s key " + message.getKeyID());
+					sendMessage(message.getFromUserID(), verifyReply);
+					
+					return;
+				} 
+				
+				if (verifyService.isTrusted(message.getArmoredPublicKey())) {
+				
+					logger.log(Level.INFO, username + " trusts " + message.getSourceUserID() + "'s key " + message.getKeyID());
+	
+					System.out.println(" PUBLIC KEY TO ENTER IN AUTH : \n " + pgpManager.getArmoredPublicKey());
+					
+					PGP2PMessage verifyReply = new PGP2PMessage()
+						.setFromUserID(username)
+						.setFinalUserID(message.getFinalUserID())
+						.setSourceUserID(message.getSourceUserID())
+						.setKeyID(message.getKeyID())
+						.setArmoredPublicKey(message.getArmoredPublicKey())
+						.setType(PGP2PService.VERIFY_REPLY)
+						.setStatus(PGP2PService.STATUS_OK)
+						.setFromConnect(false)
+						.addTrack(message.getTrack())
+						.addTrack(username)
+						// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
+						.setAuth(pgpManager.getArmoredPublicKey());
+	
+					sendMessage(message.getSourceUserID(), verifyReply);
 
-				PGP2PMessage verifyReply = new PGP2PMessage()
-					.setFromUserID(username)
-					.setFinalUserID(message.getFinalUserID())
-					.setSourceUserID(message.getSourceUserID())
-					.setKeyID(message.getKeyID())
-					.setArmoredPublicKey(message.getArmoredPublicKey())
-					.setType(PGP2PService.VERIFY_REPLY)
-					.setStatus(PGP2PService.STATUS_OK)
-					.setFromConnect(false)
-					.addTrack(message.getTrack())
-					.addTrack(username);
-
-				logger.log(Level.INFO, "Sending VERIFY_REPLY with STATUS_OK to " + message.getSourceUserID());
-
-				sendMessage(message.getSourceUserID(), verifyReply);
-
-				return;
+					return;
+				}
 
 			} else {
-				
+								
 				// TODO - change the logic to avoid code duplication
 				if ( verifyService.isTrusted(message.getArmoredPublicKey())) {
 
 					logger.log(Level.INFO, username + " trusts " + message.getSourceUserID() + "'s key " + message.getKeyID());
+					
+					System.out.println(" PUBLIC KEY TO ENTER IN AUTH : \n " + pgpManager.getArmoredPublicKey());
 
 					PGP2PMessage verifyReply = new PGP2PMessage()
 						.setFromUserID(username)
@@ -416,9 +460,10 @@ public class ADHOCPeer implements EndpointListener {
 						.setStatus(PGP2PService.STATUS_OK)
 						.setFromConnect(false)
 						.addTrack(message.getTrack())
-						.addTrack(username);
+						.addTrack(username)
+						.setAuth(message.getArmoredPublicKey());
 
-					logger.log(Level.INFO, "Sending VERIFY_REPLY with STATUS_OK to " + message.getSourceUserID());
+					//logger.log(Level.INFO, "Sending VERIFY_REPLY with STATUS_OK to " + message.getSourceUserID());
 
 					sendMessage(message.getSourceUserID(), verifyReply);
 
@@ -467,7 +512,7 @@ public class ADHOCPeer implements EndpointListener {
 		}
 
 	}
-
+	
 	/**
 	 * Process VERIFY_REPLY messages. If the status is OK, should ask for 
 	 * signing the key.
@@ -479,7 +524,7 @@ public class ADHOCPeer implements EndpointListener {
 		
 		// TODO - validates reply and begins searching for other 
 		// peers or giving a OK
-		logger.log(Level.INFO, "Processing VERIFY_REPLY");
+		logger.log(Level.INFO, "Processing VERIFY_REPLY from " + message.getFromUserID());
 		
 		if ( message.getStatus() == PGP2PService.STATUS_OK) {
 
@@ -490,23 +535,91 @@ public class ADHOCPeer implements EndpointListener {
 				logger.log(Level.INFO, "Final user received a VERIFY_REPLY with STATUS_OK from " 
 						+ message.getFromUserID() + " through " 
 						+ message.getTrack().toString() );
+				
+				PGP2PMessage signRequest = new PGP2PMessage()
+						.setFromUserID(username)
+						.setFinalUserID(message.getFinalUserID())
+						.setSourceUserID(message.getSourceUserID())
+						.setKeyID(message.getKeyID())
+						.setArmoredPublicKey(message.getArmoredPublicKey())
+						.setType(PGP2PService.SIGN_REQUEST)
+						.setStatus(PGP2PService.STATUS_OK)
+						.setFromConnect(false)
+						.addTrack(message.getTrack())
+						// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
+						.setAuth(message.getAuth());
+				
+				sendMessage(message.getFinalUserID(), signRequest);
+				
 			} else {
-				logger.log(Level.INFO, "Received a VERIFY_REPLY with STATUS_OK");
+				/*
+				 * FIXME - decide what to do, VERIFY_REPLY STATUS_OK should only come from
+				 * a VERIFY_REQUEST STATUS_OK to the SOURCE_USER_ID.
+				 */
+				logger.log(Level.INFO, "SHOULD NEVE GET HERE Received a VERIFY_REPLY with STATUS_OK");
 			}
 			
 			// TODO - if the verify reply was OK, import the publicKey in local keyRing
 			// via signRequest
 		} else {
-			logger.log(Level.INFO, "Recieved VERIFY_REPLY with STATUS_ERRROR");
+			logger.log(Level.INFO, "Recieved VERIFY_REPLY with STATUS_ERRROR Code: " + message.getStatus());
 		}
 	}
 
+
+	/**
+	 * Process SIGN_REQUEST messages. Is case the AUTH field is 
+	 * trusted, proceed with importing the pubKey and sending
+	 * it's pubKey with signReply to get imported in the requester.
+	 *  
+	 * @param message
+	 */
 	private void processSignRequest(PGP2PMessage message) {
 
 		// TODO - verifies trust for the requestor and then sign its key with
 		// processSignReply
-		logger.log(Level.INFO, "Processing SIGN_REQUEST");
+		logger.log(Level.INFO, "Processing SIGN_REQUEST from " + message.getFromUserID());
+		
+		PGPPublicKey authPubKey;
+		try {
+			authPubKey = PGPManager.getPublicKey(message.getAuth());
+			
+			String authUserID = PGPManager.getUserID(authPubKey);
+			
+			if ( verifyService.isTrusted(authPubKey) ) {
+				logger.log(Level.INFO, "Authorization from " + authUserID + " succeeded");
+				//TODO - sign and import the sourceUserID pubKey and import
+				signService.signPublicKey(authPubKey);
+				
+				//TODO - send SIGN_REPLY with Final's pubKey to be imported at Source
+				PGP2PMessage signReply = new PGP2PMessage()
+					.setFromUserID(username)
+					.setFinalUserID(message.getFinalUserID())
+					.setSourceUserID(message.getSourceUserID())
+					.setKeyID(pgpManager.getPublicKey().getKeyID())
+					.setArmoredPublicKey(pgpManager.getArmoredPublicKey())
+					.setType(PGP2PService.SIGN_REPLY)
+					.setStatus(PGP2PService.STATUS_OK)
+					.setFromConnect(false)
+					// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
+					.setAuth(message.getAuth());
+				
+			} else {
+				logger.log(Level.INFO, "Authorization from " + authUserID + "failed");
+			}
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (PGPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
 	}
+	
 
 	private void processSignReply(PGP2PMessage message) {
 

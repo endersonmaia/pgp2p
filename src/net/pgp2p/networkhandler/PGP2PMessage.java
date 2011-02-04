@@ -24,6 +24,7 @@ public class PGP2PMessage extends Message {
 	public static final String FROM_USER_ID_FIELD = "FROM_USER_ID";
 	public static final String KEY_ID_FIELD		= "KEY_ID";
 	public static final String PUBLIC_KEY_FIELD	= "PUBLIC_KEY";
+	public static final String AUTH_FIELD		= "AUTH";
 	public static final String TYPE_FIELD 		= "TYPE";
 	public static final String STATUS_FIELD		= "STATUS";
 	public static final String TRACK_FIELD		= "TRACK";
@@ -35,6 +36,7 @@ public class PGP2PMessage extends Message {
 
 	private long keyID;
 	private String armoredPublicKey;
+	private String auth;
 	private int type;
 	private int status;
 	private Collection<String> track = new HashSet<String>();
@@ -43,15 +45,34 @@ public class PGP2PMessage extends Message {
 	public PGP2PMessage fromMessage(Message message) {
 		
 		String 	fromUserID	= message.getMessageElement(NAMESPACE, FROM_USER_ID_FIELD).toString();
-		long	keyID 		= new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
-		String	publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
 		int		type		= Integer.valueOf(message.getMessageElement(NAMESPACE, TYPE_FIELD).toString());
 
 		this.setFromUserID(fromUserID)
-			.setKeyID(keyID)
-			.setArmoredPublicKey(publicKey)
 			.setType(type);
+		
+		long	keyID;
+		
+		if (message.getMessageElement(NAMESPACE, KEY_ID_FIELD) != null) {
+			keyID = new BigInteger(message.getMessageElement(NAMESPACE, KEY_ID_FIELD).toString(), 16).longValue();
+			this.setKeyID(keyID);
+		}
+			
+		
+		String	publicKey;
+		
+		if (message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD) != null) {
+			publicKey	= message.getMessageElement(NAMESPACE, PUBLIC_KEY_FIELD).toString();
+			this.setArmoredPublicKey(publicKey);
+		}
+		
+		String	auth;
+		
+		if (message.getMessageElement(NAMESPACE, AUTH_FIELD) != null) {
+			auth = message.getMessageElement(NAMESPACE, AUTH_FIELD).toString();
+			this.setAuth(auth);
+		}
 
+		
 		int 	status;
 		
 		if (message.getMessageElement(NAMESPACE, STATUS_FIELD) != null ) {
@@ -118,6 +139,17 @@ public class PGP2PMessage extends Message {
 		return this.armoredPublicKey;
 	}
 	
+	public PGP2PMessage setAuth(String auth) {
+		this.auth = auth;
+		MessageElement elemAuth = new StringMessageElement(AUTH_FIELD, auth, null);
+		replaceMessageElement(NAMESPACE, elemAuth);
+		return this;
+	}
+
+	public String getAuth() {
+		return this.auth;
+	}
+
 	public PGP2PMessage setType(int messageType) {
 		this.type = messageType;
 		
