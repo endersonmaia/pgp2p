@@ -1,6 +1,5 @@
 package net.pgp2p.verifyservice;
 
-import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Iterator;
@@ -9,11 +8,8 @@ import java.util.logging.Logger;
 
 import net.pgp2p.cryptoservice.PGPManager;
 
-import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 
 public class PGPVerify {

@@ -2,6 +2,9 @@ package net.pgp2p.networkhandler;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SignatureException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -161,7 +164,7 @@ public class ADHOCPeer implements EndpointListener {
 	 */
 	public void sendMessage(PeerID peerID, Message msg) {
 		
-		logger.log(Level.INFO, "--++ SENDING MESSAGE ++--\n" + dumpMessage(msg));
+		logger.log(Level.FINE, "--++ SENDING MESSAGE ++--\n" + dumpMessage(msg));
 
 		// gets the message
 		PGP2PMessage message = new PGP2PMessage().fromMessage(msg);
@@ -247,7 +250,7 @@ public class ADHOCPeer implements EndpointListener {
 	public void processIncomingMessage(Message message,
 			EndpointAddress srcAddr, EndpointAddress dstAddr) {
 
-		logger.log(Level.INFO, "--++ ARRIVING MESSAGE ++--\n" + dumpMessage(message));
+		logger.log(Level.FINE, "--++ ARRIVING MESSAGE ++--\n" + dumpMessage(message));
 
 		PGP2PMessage msg = new PGP2PMessage().fromMessage(message);
 
@@ -398,6 +401,7 @@ public class ADHOCPeer implements EndpointListener {
 
 			if ( ! message.isFromConnect() ) {
 				
+				//FIXME - it this necessary ? id I can't accept, why reply about it, just ignore
 				if ( ! pgpManager.getTrustedUserIDs().contains(message.getFromUserID()) ) {
 					
 					logger.log(Level.INFO, "Can't accept a VERIFY_REQUEST from a untrusted user.");
@@ -468,42 +472,43 @@ public class ADHOCPeer implements EndpointListener {
 					sendMessage(message.getSourceUserID(), verifyReply);
 
 					return;
-				}
-				
-				// Don't go to deep in verifyRequest 
-				if (message.getTrack().size() > PGP2PService.LIMIT_VERIFY_DEPTH) {
-					logger.log(Level.INFO, "Search depth limit reached.");
-					return;
-				}
-				
-				Iterator<PGPPublicKey> trustedPeers;
-				trustedPeers = pgpManager.getTrustedPublicKeys().iterator();
-				while ( trustedPeers.hasNext() ) {
-					PGPPublicKey trustedPeer = trustedPeers.next();
-					String trustedUserID = PGPManager.getUserID(trustedPeer);
-					
-					// Avoid consulting a user that has already been consulted
-					if (message.getTrack().contains(trustedUserID)){
-						logger.log(Level.INFO, "The user "+ trustedUserID + " has already been consulted.");
-						
-						continue;
-					}
-					
-					logger.log(Level.INFO, "Repassing a VERIFY_REQUEST to " + trustedUserID);
+				}			
 
-					PGP2PMessage verifyRequest = new PGP2PMessage()
-						.setFromUserID(username)
-						.setFinalUserID(message.getFinalUserID())
-						.setSourceUserID(message.getSourceUserID())
-						.setKeyID(message.getKeyID())
-						.setArmoredPublicKey(message.getArmoredPublicKey())
-						.setType(PGP2PService.VERIFY_REQUEST)
-						.setFromConnect(false)
-						.addTrack(message.getTrack())
-						.addTrack(username);
+			}
+			
+			// Don't go to deep in verifyRequest 
+			if (message.getTrack().size() > PGP2PService.LIMIT_VERIFY_DEPTH) {
+				logger.log(Level.INFO, "Search depth limit reached.");
+				return;
+			}
+			
+			Iterator<PGPPublicKey> trustedPeers;
+			trustedPeers = pgpManager.getTrustedPublicKeys().iterator();
+			while ( trustedPeers.hasNext() ) {
+				PGPPublicKey trustedPeer = trustedPeers.next();
+				String trustedUserID = PGPManager.getUserID(trustedPeer);
+				
+				// Avoid consulting a user that has already been consulted
+				if (message.getTrack().contains(trustedUserID)){
+					logger.log(Level.INFO, "The user "+ trustedUserID + " has already been consulted.");
 					
-					sendMessage(trustedUserID, verifyRequest);
+					continue;
 				}
+				
+				logger.log(Level.INFO, "Repassing a VERIFY_REQUEST to " + trustedUserID);
+
+				PGP2PMessage verifyRequest = new PGP2PMessage()
+					.setFromUserID(username)
+					.setFinalUserID(message.getFinalUserID())
+					.setSourceUserID(message.getSourceUserID())
+					.setKeyID(message.getKeyID())
+					.setArmoredPublicKey(message.getArmoredPublicKey())
+					.setType(PGP2PService.VERIFY_REQUEST)
+					.setFromConnect(false)
+					.addTrack(message.getTrack())
+					.addTrack(username);
+				
+				sendMessage(trustedUserID, verifyRequest);
 			}
 				
 		} catch (PGPException e) {
@@ -580,18 +585,75 @@ public class ADHOCPeer implements EndpointListener {
 		// processSignReply
 		logger.log(Level.INFO, "Processing SIGN_REQUEST from " + message.getFromUserID());
 		
-		PGPPublicKey authPubKey;
+		PGPPublicKey authPubKey, pubKeyToSign;
 		try {
 			authPubKey = PGPManager.getPublicKey(message.getAuth());
+			pubKeyToSign = PGPManager.getPublicKey(message.getArmoredPublicKey());
 			
 			String authUserID = PGPManager.getUserID(authPubKey);
 			
-			if ( verifyService.isTrusted(authPubKey) ) {
-				logger.log(Level.INFO, "Authorization from " + authUserID + " succeeded");
-				//TODO - sign and import the sourceUserID pubKey and import
-				signService.signPublicKey(authPubKey);
+			if ( verifyService.isTrusted(authPubKey) || message.getTrack().contains(authUserID) ) {
+				logger.log(Level.INFO, "Authentication through "+ message.getTrack() +" succeeded");
+
+				//sign and import the sourceUserID pubKey
+				signService.signPublicKey(pubKeyToSign);
 				
-				//TODO - send SIGN_REPLY with Final's pubKey to be imported at Source
+				//send SIGN_REPLY with Final's pubKey to be imported at Source
+				PGP2PMessage signReply = new PGP2PMessage()
+					.setFromUserID(username)
+					.setFinalUserID(message.getFinalUserID())
+					.setSourceUserID(message.getSourceUserID())
+					.setKeyID(pgpManager.getPublicKey().getKeyID())
+					.setArmoredPublicKey(pgpManager.getArmoredPublicKey())
+					.setType(PGP2PService.SIGN_REPLY)
+					.setStatus(PGP2PService.STATUS_OK)
+					.setFromConnect(false)
+					.addTrack(message.getTrack())
+					// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
+					.setAuth(message.getAuth());
+				
+				sendMessage(message.getFromUserID(), signReply);
+			} else {
+				logger.log(Level.INFO, "Authentication from " + authUserID + " failed");					
+			}
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (PGPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SignatureException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+
+	private void processSignReply(PGP2PMessage message) {
+
+		logger.log(Level.INFO, "Processing SIGN_REPLY from " + message.getFromUserID());
+		PGPPublicKey authPubKey, pubKeyToSign;
+		try {
+			authPubKey = PGPManager.getPublicKey(message.getAuth());
+			pubKeyToSign = PGPManager.getPublicKey(message.getArmoredPublicKey());
+			
+			String authUserID = PGPManager.getUserID(authPubKey);
+			
+			if ( verifyService.isTrusted(authPubKey) || message.getTrack().contains(authUserID) ) {
+				logger.log(Level.INFO, "Authentication through "+ message.getTrack() +" succeeded");
+
+				//sign and import the sourceUserID pubKey
+				signService.signPublicKey(pubKeyToSign);
+				
+				//send SIGN_REPLY with Final's pubKey to be imported at Source
 				PGP2PMessage signReply = new PGP2PMessage()
 					.setFromUserID(username)
 					.setFinalUserID(message.getFinalUserID())
@@ -604,8 +666,9 @@ public class ADHOCPeer implements EndpointListener {
 					// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
 					.setAuth(message.getAuth());
 				
+				sendMessage(message.getFromUserID(), signReply);
 			} else {
-				logger.log(Level.INFO, "Authorization from " + authUserID + "failed");
+				logger.log(Level.INFO, "Authentication from " + authUserID + " failed");					
 			}
 
 		} catch (IOException e) {
@@ -614,17 +677,17 @@ public class ADHOCPeer implements EndpointListener {
 		} catch (PGPException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SignatureException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		
-		
-		
-	}
-	
-
-	private void processSignReply(PGP2PMessage message) {
-
-		// TODO - save the signature in the user's keychain
-		logger.log(Level.INFO, "Processing SIGN_REPLY");
 	}
 
 	/**

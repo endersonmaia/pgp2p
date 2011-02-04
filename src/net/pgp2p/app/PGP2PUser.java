@@ -44,6 +44,7 @@ public class PGP2PUser {
 	}
 	
 	public boolean isTrustedBySomeoneITrust() {
+		return false;
 		
 	}
 	

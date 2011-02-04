@@ -1,7 +1,9 @@
 package net.pgp2p.signservice;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SignatureException;
@@ -9,11 +11,11 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.derby.iapi.sql.dictionary.SubKeyConstraintDescriptor;
+import net.pgp2p.cryptoservice.PGPManager;
+import net.pgp2p.verifyservice.PGPVerify;
+
+import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPKeyRing;
-import org.bouncycastle.openpgp.PGPKeyRingGenerator;
-import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
@@ -21,10 +23,9 @@ import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
-
-import net.pgp2p.cryptoservice.PGPManager;
-import net.pgp2p.verifyservice.PGPVerify;
 
 public class PGPSigner {
 	
@@ -70,37 +71,43 @@ public class PGPSigner {
 	public void signPublicKey(Iterator<PGPPublicKey> pubKeys) throws PGPException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException, IOException {
 		while (pubKeys.hasNext()) {
 			PGPPublicKey pubKey = pubKeys.next();
-			importKey(pubKey);
 			if (pubKey.isMasterKey()) {
-				//TODO - sign keys
+				signPublicKey(pubKey);
+			} else {
+				importKey(pubKey);
 			}
 		}
 	}
 
-	public void signPublicKey(PGPPublicKey publicKey) throws IOException, PGPException {
-		
-		importKey(publicKey);
-		// TODO - sign imported keys
-		
-//      PGPSecretKey             pgpSec = manager.getSecretKey();
-//      PGPPrivateKey            pgpPrivKey = pgpSec.extractPrivateKey("".toCharArray(), "BC");
-//      
-//      PGPSignatureGenerator    sGen = new PGPSignatureGenerator(pgpSec.getPublicKey().getAlgorithm(), PGPUtil.SHA1, "BC");
-//      
-//      sGen.initSign(PGPSignature.DEFAULT_CERTIFICATION, pgpPrivKey);
-//      
-//      PGPSignature signature = sGen.generateCertification(pubKey);
-//      
-//		PGPPublicKey.addCertification(pubKey, signature);
-//
-//		PGPPublicKey pubKeyInsideKeyRing = manager.getPublicKeyByUserID((String) pubKey.getUserIDs().next());
-//		
-//		if ( pubKeyInsideKeyRing != null) {
-//			System.out.println("Chave " + Long.toHexString(pubKeyInsideKeyRing.getKeyID()) + " encontrada no keyRing");    			
-//		} else {
-//			System.out.println("N‹o foi opssivel encontrar a chave fornecida dentro do keyring");
-//		}
-//			
+	public void signPublicKey(PGPPublicKey publicKey) throws IOException, PGPException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException {
+
+		OutputStream out = new ByteArrayOutputStream();
+
+		PGPSecretKey             pgpSec = manager.getSecretKey();
+		PGPPrivateKey            pgpPrivKey = pgpSec.extractPrivateKey("".toCharArray(), "BC");
+
+        PGPSignatureGenerator       sGen = new PGPSignatureGenerator(pgpSec.getPublicKey().getAlgorithm(), PGPUtil.SHA1, "BC");
+
+        sGen.initSign(PGPSignature.DIRECT_KEY, pgpPrivKey);
+
+        BCPGOutputStream            bOut = new BCPGOutputStream(out);
+
+        sGen.generateOnePassVersion(false).encode(bOut);
+
+        PGPSignatureSubpacketGenerator spGen = new PGPSignatureSubpacketGenerator();
+
+        boolean isHumanReadable = true;
+
+        spGen.setNotationData(false, isHumanReadable, "", "");
+
+        PGPSignatureSubpacketVector packetVector = spGen.generate();
+        sGen.setHashedSubpackets(packetVector);
+
+        bOut.flush();
+               
+        PGPPublicKey signedPublicKey = PGPPublicKey.addCertification(publicKey, sGen.generate());
+	
+		importKey(signedPublicKey);
 	}
 	
 	private void importKey(PGPPublicKey publicKey) throws PGPException, IOException {
