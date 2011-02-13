@@ -11,7 +11,7 @@ h2. Goals
 * get rich.
 
 
-Enderson Maia @<endersonmaia -at- gmail -dot- com>
+Enderson Maia @<endersonmaia -at- gmail -dot- com>@
   
 h2. License
 
