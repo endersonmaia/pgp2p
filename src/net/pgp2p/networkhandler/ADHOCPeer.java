@@ -1,3 +1,26 @@
+/*
+Copyright (c) 2011 Enderson Maia
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 package net.pgp2p.networkhandler;
 
 import java.io.File;
@@ -28,7 +51,14 @@ import net.pgp2p.verifyservice.PGPVerify;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 
-public class ADHOCPeer implements EndpointListener {
+/**
+* This class is used to instantiate a new JXTA Peer with mode ADHOC on the 
+* network.
+*
+* @author Enderson Maia <endersonmaia@gmail.com>
+*/
+
+public class ADHOCPeer implements EndpointListener  {
 
 	/**
 	 * Logger
@@ -178,9 +208,8 @@ public class ADHOCPeer implements EndpointListener {
 		
 		//FIXME - check for Messenger status instead of this hardcoded timeout
 		long t0 = System.currentTimeMillis();  
-		long timeOut= 5000; // ms
 		
-		while ( (messenger == null) && (System.currentTimeMillis() - t0 < timeOut) )  {
+		while ( (messenger == null) && (System.currentTimeMillis() - t0 < PGP2PService.REQUEST_TIMEOUT) )  {
 			messenger = endpointService.getMessenger(addr);
 		}
 
@@ -363,6 +392,7 @@ public class ADHOCPeer implements EndpointListener {
 					.setFromUserID(username)
 					.setFinalUserID(message.getFinalUserID())						
 					.setSourceUserID(message.getSourceUserID())
+					//FIXME - don't need to get from message, could get from pgpManager
 					.setKeyID(message.getKeyID())
 					.setArmoredPublicKey(message.getArmoredPublicKey())
 					.setType(PGP2PService.VERIFY_REQUEST)
@@ -437,7 +467,7 @@ public class ADHOCPeer implements EndpointListener {
 						.setFromConnect(false)
 						.addTrack(message.getTrack())
 						.addTrack(username)
-						// FIXME - setAut should receive a signature to be verified, using pubKey for tests  
+						// FIXME - setAut should receive a signature to be verified, using pubKey for now
 						.setAuth(pgpManager.getArmoredPublicKey());
 	
 					sendMessage(message.getSourceUserID(), verifyReply);

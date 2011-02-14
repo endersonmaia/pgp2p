@@ -17,6 +17,7 @@ public class PGP2PService {
 	public static final int STATUS_ERROR_NOT_CONNECTING_TO_FINAL_USER = 8;
 	
 	public static final int LIMIT_VERIFY_DEPTH = 4;
+	public static final long REQUEST_TIMEOUT = 5000; // ms
 	
 	protected static final String NAMESPACE = "pgp2p_auth";
 
@@ -28,5 +29,6 @@ public class PGP2PService {
 											"sign_request",
 											"sign_reply"
 											};
+
 
 }

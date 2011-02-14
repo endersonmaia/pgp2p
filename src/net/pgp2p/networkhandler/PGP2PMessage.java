@@ -11,6 +11,8 @@ import net.jxta.endpoint.Message;
 import net.jxta.endpoint.MessageElement;
 import net.jxta.endpoint.StringMessageElement;
 
+
+
 public class PGP2PMessage extends Message {
 
 	/**
@@ -28,6 +30,8 @@ public class PGP2PMessage extends Message {
 	public static final String TYPE_FIELD 		= "TYPE";
 	public static final String STATUS_FIELD		= "STATUS";
 	public static final String TRACK_FIELD		= "TRACK";
+	// FIXME - don't need this, it's possible to identify if is from a 
+	// connect comparing SOURCE, FINAL and FROM
 	public static final String IS_FROM_CONNECT_FIELD	= "IS_FROM_CONNECT";
 
 	private String sourceUserID;
