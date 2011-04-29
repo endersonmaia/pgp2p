@@ -2,7 +2,7 @@ h1. PGP2P
 
 h2. Objetive
 
-This project is an experiment that I'm doing with OpenPGP and Peer2Peer network. It's on early stage, and have nothing realy usable untill now.
+This project is an experiment that I'm doing with OpenPGP and Peer2Peer network. It's on early stage, and have nothing really usable right now.
 
 h2. Goals
 
